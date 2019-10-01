@@ -11,23 +11,27 @@ images = tf.zeros([1, 256, 128, 3], dtype=tf.float32)
 endpoints, body_prefix = model.endpoints(images, is_training=False)
 with tf.name_scope('head'):
     endpoints = head.head(endpoints, 128, is_training=False)
-tf.train.Saver().restore(sess, 'model/checkpoint-25000')
 
+#carga de los pesos pre entrenados    
+tf.train.Saver().restore(sess, 'model/checkpoint-25000')
 
 # caffe mobilenet model
 net = cv2.dnn.readNetFromCaffe(
     'model/deploy.prototxt', 'model/MobileNetSSD_deploy.caffemodel')
 classNames = {0: 'background', 15: 'person'}
 
+# representacion del vector persona aprendido con el modelo pre-entrenado (triplet loss)
 def human_vector(img):
     resize_img = cv2.resize(img, (128,256))
     resize_img = np.expand_dims(resize_img, axis=0)
     emb = sess.run(endpoints['emb'], feed_dict={images: resize_img})
     return emb
 
+# determinación de la distancia euclideana entre dos vectores persona
 def human_distance(enc1, enc2):
     return np.sqrt(np.sum(np.square(enc1 - enc2)))
 
+# se obtiene una sub imagen con una sola persona a partir del bounding box
 def crop_human(frame, locations):
     human_image = []
     for loc in locations:
@@ -36,6 +40,7 @@ def crop_human(frame, locations):
         human_image.append(sub_frame)
     return human_image
 
+# se obtienen las ubicaciones de personas en una imagen mediante el modelo pre entrenado (detección de "objetos")
 def human_locations(frame, thr=0.5):
     frame_resized = cv2.resize(frame, (300,300))
     blob = cv2.dnn.blobFromImage(
